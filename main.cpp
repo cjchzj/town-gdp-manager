@@ -54,10 +54,19 @@ public:
 		}
 		return n;
 	}
-	void setcity(int y) {//输入数据
-		cout << "请输入城市名称：";
+	void setcity(int y,bool over,string name_set="") {//输入数据
+		if (over) {
+			total_gdp -= gdp;
+			total_population -= population;
+		}
 		string n;
-		cin >> n;
+		if(name_set.empty()){
+			cout << "请输入城市名称：";
+			cin >> n;
+		}
+		else {
+			n = name_set;
+		}
 		cout << "请输入人口：";
 		long long p = valid_input();
 		cout << "请输入GDP：";
@@ -93,12 +102,13 @@ public:
 };
 class Operate {
 private:
-	map<int, vector<City>>city;
+	static map<int, vector<City>>city;
 public:
+	friend class City;
 	friend class File_operate;
 	void save_data();
 	void load_data();
-	int valid_int(int min, int max) {
+	static int valid_int(int min, int max) {
 		int n;
 		while (!(cin >> n) || n < min || n > max) {
 			cout << "请进行合法操作（输入 " << min << "-" << max << "）" << endl;
@@ -363,25 +373,120 @@ public:
 		}
 		return ret;
 	}
-	void add() {//添加年份
+	void fix() {
+		cout << "请输入年份：" << endl;
+		int y;
+		y = valid_check_year();
+		cout << "请输入城市：" << endl;
+		string c;
+		cin >> c;
+		bool found = false;
+		int found_idx = -1;
+		for (int i = 0; i < city[y].size(); i++) {
+			if (city[y][i].name == c) {
+				found = true;
+				found_idx = i;
+				break;
+			}
+		}
+		if (found) {
+			cout << "请重新输入该城市数据：" << endl;
+			city[y][found_idx].setcity(y, true, c);
+			cout << "修改成功" << endl;
+		}
+		else {
+			cout << "该年份此城市数据不存在" << endl;
+		}
+		return;
+	}
+	void add_year() {//添加年份
 		int y;
 		cout << "请输入年份（按0退出）" << endl;
 		y = valid_year();
 		if (!y) {
 			return;
 		}
-		while(1){
-			City c;
+		while (1) {
 			int z = 0;
 			cout << "按1输入城市数据，按0退出" << endl;
-			cin >> z;
+			z = valid_int(0, 1);
 			if (z == 0) {
 				break;
 			}
-			c.setcity(y);
-			city[y].push_back(c);
+			cout << "请输入城市名称：";
+			string n;
+			cin >> n;
+			bool found = false;
+			int found_idx = -1;
+			for (int i = 0; i < city[y].size(); i++) {
+				if (city[y][i].name == n) {
+					found = true;
+					found_idx = i;
+					break;
+				}
+			}
+			if (found) {
+				int choice = valid_int(0, 1);
+				cout << "该年份此城市已存在，覆写按1，取消按0：" << endl;
+				if (choice == 1) {
+					city[y][found_idx].setcity(y, true, n);
+					cout << "覆写成功" << endl;
+				}
+			}
+			else {
+				City c;
+				c.setcity(y, false, n);
+				city[y].push_back(c);
+				cout << "添加成功" << endl;
+			}
 		}
-		return;
+	}
+	void add_city() {
+		string n;
+		while (1) {
+			cout << "请输入城市：";
+			cin >> n;
+			cout << "\n确定按1，重新输入按2，退出按0" << endl;
+			int k;
+			k = valid_int(0, 2);
+			if (!k) {
+				return;
+			}
+			else if (k == 1) {
+				break;
+			}
+		}
+		while (1) {
+			cout << "请输入年份（按0退出）：" << endl;
+			int k;
+			k = valid_year();
+			if (!k) {
+				return;
+			}
+			bool found = false;
+			int found_idx = -1;
+			for (int i = 0; i < city[k].size(); i++) {
+				if (city[k][i].name == n) {
+					found = true;
+					found_idx = i;
+					break;
+				}
+			}
+			if (found) {
+				cout << "该年份此城市已存在，覆写请按1，取消请按0" << endl;
+				int if_pass = valid_int(0, 1);
+				if (if_pass == 1) {
+					city[k][found_idx].setcity(k, true, n);
+					cout << "覆写成功" << endl;
+				}
+			}
+			else {
+				City c;
+				c.setcity(k, false, n);
+				city[k].push_back(c); 
+				cout << "添加成功" << endl;
+			}
+		}
 	}
 	void delete_all() {//删除全部
 		cout << "确认删除按1，退出按任意键" << endl;
@@ -418,6 +523,37 @@ public:
 		}
 	}
 	void delete_city() {//删城市
+		cout << "删除所有年份按1，删除某年份按2，退出按0" << endl;
+		int k = valid_int(0, 2);
+		if (k == 1) {
+			cout << "请输入删除城市名" << endl;
+			string n2;
+			cin >> n2;
+			int delete_count = 0;
+			for (auto& year_item : city) {
+				int year = year_item.first;
+				auto& city_list = year_item.second;
+				for (int i = 0; i < city_list.size(); i++) {
+					if (city_list[i].name == n2) {
+						City::total_gdp -= city_list[i].gdp;
+						City::total_population -= city_list[i].population;
+						city_list.erase(city_list.begin() + i);
+						delete_count++;
+						i--; 
+					}
+				}
+			}
+			if (delete_count > 0) {
+				cout << "已删除所有年份的 [" << n2 << "]，共删除 " << delete_count << " 条数据" << endl;
+			}
+			else {
+				cout << "该城市不存在任何数据" << endl;
+			}
+			return;
+		}
+		if (k == 0) {
+			return;
+		}
 		int y = valid_check_year();
 		if (y == 0) {
 			return;
@@ -585,15 +721,17 @@ public:
 			cout << "2. 删除指定年份\n";
 			cout << "3. 删除指定城市\n";
 			cout << "4. 清空所有数据\n";
+			cout << "5. 修改城市数据\n";
 			cout << "0. 返回主菜单\n";
 			int choice = op.valid_int(0, 4);
 
 			clear_screen();
 			switch (choice) {
-			case 1: op.add(); break;
+			case 1: op.add_year(); break;
 			case 2: op.delete_year(); break;
 			case 3: op.delete_city(); break;
 			case 4: op.delete_all(); break;
+			case 5: op.fix(); break;
 			case 0: return;
 			}
 			cout << "\n按回车键继续...";
@@ -642,6 +780,7 @@ public:
 		}
 	}
 };
+map<int, vector<City>> Operate::city;
 int main() {
 	Operate op;
 	op.load_data();
